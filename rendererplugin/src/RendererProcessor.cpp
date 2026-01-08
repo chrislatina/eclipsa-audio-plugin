@@ -51,9 +51,6 @@ RendererProcessor::RendererProcessor()
       activeMixPresentationRepository_(getTreeWithId(kActiveMixKey)),
       filePlaybackRepository_(getTreeWithId(kFilePlaybackKey)),
       isRealtime_(true) {
-#ifdef WIN32
-  LoadWindowsDependencies();
-#endif
   // Initialize Logger
   Logger::getInstance().init("EclipsaRenderer");
 
@@ -274,7 +271,7 @@ juce::AudioProcessorEditor* RendererProcessor::createEditor() {
 void RendererProcessor::getStateInformation(juce::MemoryBlock& destData) {
   LOG_ANALYTICS(instanceId_, "RendererProcessor getStateInformation \n");
 
-// Always add the latest version attribute to the XML state
+  // Always add the latest version attribute to the XML state
 #if defined(ECLIPSA_VERSION)
   LOG_ANALYTICS(instanceId_, "Renderer Plugin setting config version to \n" +
                                  std::string(ECLIPSA_VERSION));
@@ -418,11 +415,14 @@ juce::ValueTree RendererProcessor::getTreeWithId(const juce::Identifier& id) {
 }
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter() {
+#ifdef WIN32
+  ProcessorBase::LoadWindowsDependencies();
+#endif
   return new RendererProcessor();
 }
 
 void RendererProcessor::checkManualOfflineStartStop() {
-// This is utilized by debug builds to perform the manual bounce operation
+  // This is utilized by debug builds to perform the manual bounce operation
 #if JUCE_DEBUG
   juce::SpinLock::ScopedLockType realtimeLock(realtimeLock_);
   FileExport configParams = fileExportRepository_.get();
@@ -453,10 +453,12 @@ void RendererProcessor::valueTreePropertyChanged(
     LOG_ANALYTICS(instanceId_, mainBusInfo);
   }
 }
+
 void RendererProcessor::valueTreeChildAdded(
     juce::ValueTree& parentTree, juce::ValueTree& childWhichHasBeenAdded) {
   checkManualOfflineStartStop();
 }
+
 void RendererProcessor::valueTreeChildRemoved(
     juce::ValueTree& parentTree, juce::ValueTree& childWhichHasBeenRemoved,
     int indexFromWhichChildWasRemoved) {
