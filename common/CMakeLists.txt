@@ -10,59 +10,51 @@
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 
-# -------------------------------
-#  Core module setup
-# -------------------------------
-
+#====================================================================
+# Core module setup
+#====================================================================
 juce_add_modules(
-    components
-    data_repository
-    data_structures
-    logger
-    processors
-    substream_rdr)
+        components
+        data_repository
+        data_structures
+        logger
+        processors
+        substream_rdr)
 
-# -------------------------------
-#  Optional test targets
-# -------------------------------
-
-if(CI_TEST OR INTERNAL_TEST)
+#====================================================================
+# Optional test targets
+#====================================================================
+if (CI_TEST OR INTERNAL_TEST)
     add_subdirectory(processors/tests)
     add_subdirectory(data_repository/tests)
     add_subdirectory(logger/tests)
     add_subdirectory(data_structures/tests)
-    add_subdirectory(substream_rdr/tests)    
-endif()
+    add_subdirectory(substream_rdr/tests)
+endif ()
 
-# -------------------------------
-#  Platform-specific processor defs
-# -------------------------------
-
+#====================================================================
 # DAW-specific build flags
-if(ECLIPSA_LOGIC_PRO_BUILD)
+#====================================================================
+if (ECLIPSA_LOGIC_PRO_BUILD)
     target_compile_definitions(processors INTERFACE ECLIPSA_LOGIC_PRO_BUILD=1)
-endif()
+endif ()
 
-# -------------------------------
-#  Icon resources
-# -------------------------------
-
+#====================================================================
+# Icon resources
+#====================================================================
 add_subdirectory(components/icons)
 target_link_libraries(components INTERFACE binary_data)
-
 # Link components against Eigen (for AmbisonicsVisualizer)
 target_link_libraries(components INTERFACE Eigen)
 
-# -------------------------------
-#  Common include directories
-# -------------------------------
-
+#====================================================================
+# Common include directories
+#====================================================================
 target_include_directories(data_structures INTERFACE
         "${BOOST_LIBRARY_INCLUDES}/include"
         "${zeromq_SOURCE_DIR}/include"
         "${cppzmq_SOURCE_DIR}"
 )
-
 target_include_directories(substream_rdr INTERFACE
         "${spatialaudio_SOURCE_DIR}/include"
         "${spatialaudio_SOURCE_DIR}"
@@ -75,11 +67,9 @@ target_include_directories(substream_rdr INTERFACE
         "${CMAKE_SOURCE_DIR}/third_party/libiamf/code/include"
 )
 
-# -------------------------------
-#  IAMF and Proto Integration
-# -------------------------------
-
-# Unified cross-platform IAMF linkage (no Bazel paths)
+#====================================================================
+# IAMF and Proto Integration
+#====================================================================
 target_link_libraries(data_structures INTERFACE iamftools substream_rdr)
 
 # Make sure our regenerated proto headers come first
@@ -87,18 +77,15 @@ target_include_directories(data_structures INTERFACE
         "${CMAKE_SOURCE_DIR}/third_party/iamftools/iamf/cli/proto"
 )
 
-# -------------------------------
-#  Substream and Processor Linking
-# -------------------------------
-
-# Both Windows and macOS now link full audio stack (OBR + SAF)
+#====================================================================
+# Substream and Processor Linking
+#====================================================================
 target_link_libraries(substream_rdr INTERFACE
         libspatialaudio
         obr
         libear
         data_structures
 )
-
 target_link_libraries(processors INTERFACE
         gpac
         libear
@@ -110,40 +97,36 @@ target_link_libraries(processors INTERFACE
         saf_example_ambi_dec
         lufs_meter
 )
-
 target_include_directories(substream_rdr INTERFACE ${OBR_INCLUDE_DIRS})
 target_include_directories(processors INTERFACE ${OBR_INCLUDE_DIRS})
 
-# -------------------------------
-#  Components and Logging
-# -------------------------------
-
+#====================================================================
+# Components and Logging
+#====================================================================
 target_link_libraries(components INTERFACE binary_data libear substream_rdr processors data_structures data_repository)
-
-if(WIN32)
-    message(STATUS "Linking logger against Boost via CMake targets")
-
-#    find_package(Boost 1.70.0 REQUIRED COMPONENTS log log_setup thread filesystem)
-
-    target_link_libraries(logger INTERFACE
-            Boost::log
-            Boost::log_setup
-            Boost::filesystem
-            Boost::thread
-            Boost::system
-            juce::juce_core
-    )
-
-#    target_include_directories(logger INTERFACE ${Boost_INCLUDE_DIRS})
-else()
-    target_link_libraries(logger INTERFACE
-            Boost::log
-            Boost::log_setup
-            Boost::thread
-            Boost::filesystem
-            juce::juce_core
-    )
-endif()
+target_link_libraries(logger INTERFACE
+        Boost::log
+        Boost::log_setup
+        Boost::filesystem
+        Boost::thread
+        juce::juce_core
+)
 
 get_target_property(SUBSTREAM_INCLUDES substream_rdr INTERFACE_INCLUDE_DIRECTORIES)
 message(STATUS "substream_rdr include paths: ${SUBSTREAM_INCLUDES}")
+
+#====================================================================
+# Unified plugin dependency target
+#====================================================================
+add_library(eclipsa_common INTERFACE)
+target_link_libraries(eclipsa_common INTERFACE
+        substream_rdr
+        processors
+        components
+        logger
+        data_repository
+        data_structures
+        juce::juce_recommended_config_flags
+        juce::juce_recommended_lto_flags
+        juce::juce_recommended_warning_flags
+)

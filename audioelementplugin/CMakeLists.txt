@@ -12,14 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+#====================================================================
 # Set plugin code and name based on build type
-if(ECLIPSA_LOGIC_PRO_BUILD)
+#====================================================================
+if (ECLIPSA_LOGIC_PRO_BUILD)
     set(AUDIO_ELEMENT_PLUGIN_CODE "Eacl")
     set(AUDIO_ELEMENT_PRODUCT_NAME "Eclipsa Audio Element Plugin for Logic Pro")
-else()
+else ()
     set(AUDIO_ELEMENT_PLUGIN_CODE "Ecae")
     set(AUDIO_ELEMENT_PRODUCT_NAME "Eclipsa Audio Element Plugin")
-endif()
+endif ()
 
 juce_add_plugin(AudioElementPlugin
         PLUGIN_MANUFACTURER_CODE ${ECLIPSA_MANUFACTURER_CODE}
@@ -31,7 +33,7 @@ juce_add_plugin(AudioElementPlugin
         IS_MIDI_EFFECT FALSE
         EDITOR_WANTS_KEYBOARD_FOCUS FALSE
         COPY_PLUGIN_AFTER_BUILD ${JUCE_COPY_PLUGIN_AFTER_BUILD}
-        FORMATS ${PLUGIN_FORMATS}
+        FORMATS ${ECLIPSA_PLUGIN_FORMATS}
         PRODUCT_NAME ${AUDIO_ELEMENT_PRODUCT_NAME}
         AAX_CATEGORY "AAX_ePlugInCategory_SoundField")
 
@@ -44,6 +46,8 @@ target_sources(AudioElementPlugin
         src/screens/PositionSelectionScreen.cpp
         src/screens/TrackMonitorScreen.cpp)
 
+eclipsa_plugin_defaults(AudioElementPlugin)
+
 target_compile_definitions(AudioElementPlugin
         PUBLIC
         JUCE_WEB_BROWSER=0
@@ -53,24 +57,13 @@ target_compile_definitions(AudioElementPlugin
         JUCE_ENABLE_LIVE_CONSTANT_EDITOR=1
         JucePlugin_Category="Spatial")
 
-# Add DAW-specific build flags when enabled
-if(ECLIPSA_LOGIC_PRO_BUILD)
+if (ECLIPSA_LOGIC_PRO_BUILD)
     target_compile_definitions(AudioElementPlugin PRIVATE ECLIPSA_LOGIC_PRO_BUILD=1)
-endif()
+endif ()
 
-# Platform-specific settings
-if(APPLE)
-    target_link_options(AudioElementPlugin
-            PUBLIC
-            "-Wl"
-            "-ld_classic")
-elseif(WIN32)
-    # MSVC flags for math constants
-    target_compile_definitions(AudioElementPlugin PRIVATE _USE_MATH_DEFINES)
-endif()
-
-target_include_directories(AudioElementPlugin PUBLIC "${BOOST_LIBRARY_INCLUDES}/include")
-
+#====================================================================
+#Link libraries
+#====================================================================
 target_link_libraries(AudioElementPlugin
         PRIVATE
         substream_rdr
@@ -83,78 +76,35 @@ target_link_libraries(AudioElementPlugin
         juce::juce_recommended_lto_flags
         juce::juce_recommended_warning_flags)
 
-if(WIN32)
-    target_link_libraries(AudioElementPlugin PRIVATE delayimp)
-endif()
-
-# Platform-specific Boost linking
-if(WIN32)
-    # Windows: Boost headers only (lockfree is header-only)
-    target_include_directories(AudioElementPlugin PRIVATE ${Boost_INCLUDE_DIRS})
-else()
-    # macOS: Modern CMake target
-    target_link_libraries(AudioElementPlugin PRIVATE Boost::lockfree)
-endif()
-
-# Windows-specific: Link ZLIB
-if(WIN32)
-    find_package(ZLIB REQUIRED)
-    if(ZLIB_FOUND)
-        message(STATUS "Linking AudioElementPlugin against ZLIB: ${ZLIB_LIBRARIES}")
-        target_link_libraries(AudioElementPlugin PRIVATE ZLIB::ZLIB)
-        if(TARGET AudioElementPlugin_VST3)
-            target_link_libraries(AudioElementPlugin_VST3 PRIVATE ZLIB::ZLIB)
-        endif()
-    else()
-        message(FATAL_ERROR "ZLIB not found for AudioElementPlugin")
-    endif()
-endif()
-
-if(CI_TEST OR INTERNAL_TEST)
+#====================================================================
+#Testing
+#====================================================================
+if (CI_TEST OR INTERNAL_TEST)
     add_subdirectory(test)
-endif()
+endif ()
 
+#====================================================================
 # Copy resources for each plugin format
-if(BUILD_AAX AND TARGET AudioElementPlugin_AAX)
-    message(STATUS "AAX build detected. Setting up audio element plugin path and copying resources.")
-    set(AUDIO_ELEMENT_AAX_PATH "${CMAKE_BINARY_DIR}/audioelementplugin/AudioElementPlugin_artefacts/$<CONFIG>/AAX/Eclipsa Audio Element Plugin.aaxplugin")
-    copy_resources(AudioElementPlugin_AAX "${AUDIO_ELEMENT_AAX_PATH}")
+#====================================================================
+set(_ARTEFACTS_BASE "${CMAKE_BINARY_DIR}/audioelementplugin/AudioElementPlugin_artefacts")
+set(_PLUGIN_NAME "Eclipsa Audio Element Plugin")
 
-    if(WIN32)
-        foreach(dll IN LISTS DELAYLOAD_DLLS)
-            target_link_options(AudioElementPlugin_AAX PRIVATE /DELAYLOAD:${dll})
-        endforeach()
-    endif()
-endif()
+if (TARGET AudioElementPlugin_AAX)
+    copy_resources(AudioElementPlugin_AAX "${_ARTEFACTS_BASE}/$<CONFIG>/AAX/${_PLUGIN_NAME}.aaxplugin")
+endif ()
 
-if(BUILD_VST3 AND TARGET AudioElementPlugin_VST3)
-    message(STATUS "VST3 build detected. Setting up Audio Element plugin path and copying resources.")
-    set(AUDIO_ELEMENT_VST3_PATH "${CMAKE_BINARY_DIR}/audioelementplugin/AudioElementPlugin_artefacts/$<CONFIG>/VST3/Eclipsa Audio Element Plugin.vst3")
-    copy_resources(AudioElementPlugin_VST3 "${AUDIO_ELEMENT_VST3_PATH}")
+if (TARGET AudioElementPlugin_VST3)
+    copy_resources(AudioElementPlugin_VST3 "${_ARTEFACTS_BASE}/$<CONFIG>/VST3/${_PLUGIN_NAME}.vst3")
+endif ()
 
-    if (WIN32)
-        foreach(dll IN LISTS DELAYLOAD_DLLS)
-            target_link_options(AudioElementPlugin_VST3 PRIVATE /DELAYLOAD:${dll})
-        endforeach()
-    endif()
-endif()
+if (TARGET AudioElementPlugin_Standalone)
+    copy_resources(AudioElementPlugin_Standalone "${_ARTEFACTS_BASE}/$<CONFIG>/Standalone")
+endif ()
 
-if(CMAKE_BUILD_TYPE STREQUAL "Release" AND APPLE)
-    message(STATUS "MacOS release build detected. Copying Audio Element Resources for AU Plugins.")
-    if(ECLIPSA_LOGIC_PRO_BUILD)
-        set(AUDIO_PLUGIN_PATH "${CMAKE_BINARY_DIR}/audioelementplugin/AudioElementPlugin_artefacts/Release/AU/Eclipsa Audio Element Plugin for Logic Pro.component")
-    else()
-        set(AUDIO_PLUGIN_PATH "${CMAKE_BINARY_DIR}/audioelementplugin/AudioElementPlugin_artefacts/Release/AU/Eclipsa Audio Element Plugin.component")
-    endif()
-    copy_resources(AudioElementPlugin ${AUDIO_PLUGIN_PATH})
-endif()
-
-if(TARGET AudioElementPlugin_Standalone)
-    message(STATUS "Standalone build detected. Setting up Audio Element plugin path and copying resources.")
-    set(AUDIO_ELEMENT_STANDALONE_PATH "${CMAKE_BINARY_DIR}/audioelementplugin/AudioElementPlugin_artefacts/$<CONFIG>/Standalone")
-    copy_resources(AudioElementPlugin_Standalone "${AUDIO_ELEMENT_STANDALONE_PATH}")
-endif()
-
-if(NOT BUILD_AAX AND NOT BUILD_VST3 AND NOT CMAKE_BUILD_TYPE STREQUAL "Release")
-    message(STATUS "No supported plugin formats detected. Skipping resource setup and resource copy for Audio Element Plugin.")
-endif()
+if (TARGET AudioElementPlugin_AU)
+    if (ECLIPSA_LOGIC_PRO_BUILD)
+        copy_resources(AudioElementPlugin_AU "${_ARTEFACTS_BASE}/$<CONFIG>/AU/${_PLUGIN_NAME} for Logic Pro.component")
+    else ()
+        copy_resources(AudioElementPlugin_AU "${_ARTEFACTS_BASE}/$<CONFIG>/AU/${_PLUGIN_NAME}.component")
+    endif ()
+endif ()

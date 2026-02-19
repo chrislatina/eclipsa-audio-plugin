@@ -17,45 +17,51 @@
 # test_source:  Test source file name.
 # test_libs:    Test link libraries as ';' separated list.
 function(eclipsa_add_test test_name test_source test_libs)
-    # Construct the absolute path to the test source file
     set(absolute_test_source "${CMAKE_CURRENT_SOURCE_DIR}/${test_source}")
 
-    # Append the absolute test source path to a global list of sources
     get_property(test_sources GLOBAL PROPERTY ECLIPSA_TEST_SOURCES)
     set_property(GLOBAL PROPERTY ECLIPSA_TEST_SOURCES "${test_sources};${absolute_test_source}")
 
-    # Append the test libraries to a global list of libraries
-    get_property(test_link_libs GLOBAL PROPERTY ECLIPSA_TEST_LINK_LIBS)
-    set_property(GLOBAL PROPERTY ECLIPSA_TEST_LINK_LIBS "${test_link_libs};${test_libs}")
+    # Only add codec libs when a test needs IAMF decode/encode stack
+    set(_needs_iamf_codecs FALSE)
+    if ("${test_libs}" MATCHES "(^|;)iamf(;|$)" OR "${test_libs}" MATCHES "(^|;)iamfdec_utils(;|$)")
+        set(_needs_iamf_codecs TRUE)
+    endif ()
 
-    # Add codec libraries for all test targets if on macOS
-    if(APPLE)
-        # Append only if not already present in test_libs
-        list(FIND test_libs "opus" opus_found)
-        if(opus_found EQUAL -1)
-            list(APPEND test_libs opus)
-        endif()
-        list(FIND test_libs "ogg" ogg_found)
-        if(ogg_found EQUAL -1)
-            list(APPEND test_libs ogg)
-        endif()
-    endif()
+    if (_needs_iamf_codecs)
+        if (APPLE)
+            set(LIBIAMF_CODEC_PATH "${CMAKE_SOURCE_DIR}/third_party/libiamf/lib/macos")
+            list(APPEND test_libs
+                    "${LIBIAMF_CODEC_PATH}/libopus.a"
+                    "${LIBIAMF_CODEC_PATH}/libogg.a"
+            )
+        elseif (WIN32)
+            set(LIBIAMF_CODEC_PATH "${CMAKE_SOURCE_DIR}/third_party/libiamf/lib/Windows")
+            list(APPEND test_libs
+                    $<IF:$<CONFIG:Debug>,${LIBIAMF_CODEC_PATH}/Debug/opus.lib,${LIBIAMF_CODEC_PATH}/Release/opus.lib>
+                    $<IF:$<CONFIG:Debug>,${LIBIAMF_CODEC_PATH}/Debug/ogg.lib,${LIBIAMF_CODEC_PATH}/Release/ogg.lib>
+            )
+        endif ()
+    endif ()
 
-    # Add IAMF include directories if 'iamf' or 'iamfdec_utils' is requested
-    if("${test_libs}" MATCHES "iamf" OR "${test_libs}" MATCHES "iamfdec_utils")
-        if(NOT DEFINED LIBIAMF_INCLUDE_DIRS)
-             message(WARNING "LIBIAMF_INCLUDE_DIRS not defined, but required by ${test_name}")
-        endif()
-    endif()
-    
-    # If iamfdec_utils was requested, make sure iamf is also linked (dependency)
-    if(TARGET iamf AND "${test_libs}" MATCHES "iamfdec_utils")
-        # Check if iamf is already in the list to avoid duplicates
+    # IAMF include dirs warning
+    if (_needs_iamf_codecs AND NOT DEFINED LIBIAMF_INCLUDE_DIRS)
+        message(WARNING "LIBIAMF_INCLUDE_DIRS not defined, but required by ${test_name}")
+    endif ()
+
+    # If iamfdec_utils requested, ensure iamf is also linked
+    if (TARGET iamf AND "${test_libs}" MATCHES "(^|;)iamfdec_utils(;|$)")
         list(FIND test_libs "iamf" iamf_already_linked)
-        if(iamf_already_linked EQUAL -1)
-            # Link iamf privately as it's a dependency of a private lib
+        if (iamf_already_linked EQUAL -1)
             list(APPEND test_libs iamf)
-            message(STATUS "Also linking core 'iamf' library as dependency for ${test_name}")
-        endif()
-    endif()
+        endif ()
+    endif ()
+
+    get_property(test_link_libs GLOBAL PROPERTY ECLIPSA_TEST_LINK_LIBS)
+    if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test_resources")
+        file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/test_resources"
+                DESTINATION "${CMAKE_CURRENT_BINARY_DIR}")
+    endif ()
+
+    set_property(GLOBAL PROPERTY ECLIPSA_TEST_LINK_LIBS "${test_link_libs};${test_libs}")
 endfunction()

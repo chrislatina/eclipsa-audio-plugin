@@ -67,7 +67,8 @@ The CMake build supports the following flags:
 
 On MacOS, run the following command to configure the CMake build, adding any desired flags as needed
 ```
-cmake -DCMAKE_BUILD_TYPE:STRING=Release -DCMAKE_C_COMPILER:FILEPATH=/usr/bin/clang -DCMAKE_CXX_COMPILER:FILEPATH=/usr/bin/clang++ -DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE --no-warn-unused-cli -S ./ -B ./build -G "Unix Makefiles"
+cmake -DCMAKE_BUILD_TYPE:STRING=Release -DCMAKE_C_COMPILER:FILEPATH=/usr/bin/clang -DCMAKE_CXX_COMPILER:FILEPATH=/usr/bin/clang++ -DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE --no-warn-unused-cli -S ./ -B ./build -G "Unix Makefiles"    -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/macos.cmake
+
 ```
 
 Or using Ninja
@@ -94,7 +95,8 @@ Then execute the Configure and Build commands via the CMake extension.
 
 On Windows, run the following command to configure the CMake build:
 ```
-cmake.exe -DVCPKG_ROOT:STRING=C:\Code\Repos\vcpkg "-DMKL_ROOT:STRING=C:\Program Files (x86)\Intel\oneAPI\mkl\2025.3" -DVCPKG_TARGET_TRIPLET:STRING=x64-windows -DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE --no-warn-unused-cli -S ./ -B ./build -G "Visual Studio 17 2022" -T host=x64 -A x64
+cmake.exe -DVCPKG_ROOT:STRING=C:\Code\Repos\vcpkg "-DMKL_ROOT:STRING=C:\Program Files (x86)\Intel\oneAPI\mkl\2025.3" -DVCPKG_TARGET_TRIPLET:STRING=x64-windows -DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE --no-warn-unused-cli -S ./ -B ./build -G "Visual Studio 17 2022" -T host=x64 -A x64 -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/windows.cmake
+
 ```
 
 The plugin can then be built with the following command:
@@ -102,7 +104,7 @@ The plugin can then be built with the following command:
 cmake --build ./build --config=Release
 ```
 
-Alternativel, use the CMake extension for Visual Studio Code adding the following to settings.json:
+Alternatively, use the CMake extension for Visual Studio Code adding the following to settings.json:
 ```
     "cmake.configureSettings": {
         "VCPKG_ROOT": "C:\\Code\\Repos\\vcpkg",

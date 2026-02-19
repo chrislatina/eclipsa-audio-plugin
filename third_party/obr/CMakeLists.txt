@@ -19,34 +19,10 @@ target_include_directories(obr INTERFACE
         ${CMAKE_CURRENT_SOURCE_DIR}/obr/renderer
         ${CMAKE_CURRENT_SOURCE_DIR}/obr/ambisonic_encoder
         ${CMAKE_BINARY_DIR}/_deps/pffft-src
-
 )
 
-# Platform-specific static linking
-if (WIN32)
-    target_link_libraries(obr INTERFACE
-            $<$<CONFIG:Debug>:${CMAKE_CURRENT_SOURCE_DIR}/lib/Windows/Debug/obr.lib>
-            $<$<CONFIG:Release>:${CMAKE_CURRENT_SOURCE_DIR}/lib/Windows/Release/obr.lib>
-            $<$<CONFIG:Debug>:${CMAKE_CURRENT_SOURCE_DIR}/lib/Windows/Debug/pffft.lib>
-            $<$<CONFIG:Release>:${CMAKE_CURRENT_SOURCE_DIR}/lib/Windows/Release/pffft.lib>
-            Eigen
-    )
-else()
-        add_library(obr_dylib SHARED IMPORTED)
-        set_target_properties(obr_dylib PROPERTIES
-                IMPORTED_LOCATION         "${CMAKE_CURRENT_LIST_DIR}/lib/obr.dylib"
-                IMPORTED_LOCATION_DEBUG   "${CMAKE_CURRENT_LIST_DIR}/lib/obr.dylib"
-                IMPORTED_LOCATION_RELEASE "${CMAKE_CURRENT_LIST_DIR}/lib/obr.dylib"
-                IMPORTED_LOCATION_RELWITHDEBINFO "${CMAKE_CURRENT_LIST_DIR}/lib/obr.dylib"
-                IMPORTED_SONAME "obr.dylib"
-                LINKER_LANGUAGE CXX)
-
-        target_link_libraries(obr 
-                INTERFACE 
-                obr_dylib
-                Eigen
-                pffft)
-endif()
+# Platform-specific impl defined in cmake/prebuiltLibs/*.cmake
+target_link_libraries(obr INTERFACE obr_impl Eigen pffft)
 
 # Make include dirs available to parent
 set(OBR_INCLUDE_DIRS
@@ -54,6 +30,5 @@ set(OBR_INCLUDE_DIRS
         ${CMAKE_CURRENT_SOURCE_DIR}/obr
         ${CMAKE_CURRENT_SOURCE_DIR}/obr/renderer
         ${CMAKE_CURRENT_SOURCE_DIR}/obr/ambisonic_encoder
-
 )
 set(OBR_INCLUDE_DIRS "${OBR_INCLUDE_DIRS}" PARENT_SCOPE)
