@@ -59,11 +59,13 @@ static Result loadTask(const std::filesystem::path file,
   if (!reader) {
     return stop ? Result{kPreempted} : Result{kLoadFailed};
   }
+
   reader->indexFile(stop);
   reader->resetLayout(layout);
+
   const IAMFFileReader::StreamData kData = reader->getStreamData();
 
-  auto buffer = std::make_unique<IamfBufferedReader>(std::move(reader), 5);
+  auto buffer = std::make_unique<IamfBufferedReader>(std::move(reader), 2);
   buffer->waitUntilReady();
 
   const ResultType kRt = stop ? kPreempted : kLoadFinished;
@@ -96,7 +98,7 @@ static Result layoutTask(const std::filesystem::path file,
 
   const IAMFFileReader::StreamData kData = reader->getStreamData();
 
-  auto buffer = std::make_unique<IamfBufferedReader>(std::move(reader), 5);
+  auto buffer = std::make_unique<IamfBufferedReader>(std::move(reader), 2);
   buffer->waitUntilReady();
 
   return Result{kLayoutFinished, std::move(buffer), 0, kData};
