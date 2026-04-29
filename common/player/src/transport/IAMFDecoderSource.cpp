@@ -44,7 +44,11 @@ void IAMFDecoderSource::stop() {
 
 bool IAMFDecoderSource::seek(size_t frameIndex) {
   const juce::SpinLock::ScopedLockType lock(stateLock_);
-  if (frameIndex >= streamData_.numFrames) {
+  // numFrames is only populated when the reader has been indexed.
+  // Realtime playback skips indexing to avoid blocking startup
+  // IAMFFileReader::seekFrame should return false (EOF) if the
+  // requested frame is past the actual end of the stream.
+  if (streamData_.numFrames > 0 && frameIndex >= streamData_.numFrames) {
     return false;
   }
   sampleCount_ = frameIndex * streamData_.frameSize;

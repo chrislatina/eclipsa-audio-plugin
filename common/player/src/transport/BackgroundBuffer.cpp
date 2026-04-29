@@ -132,16 +132,23 @@ void BackgroundBuffer::decodeTask() {
                  [this] { return stop_ || !eof_; });
     if (stop_) return;
     if (eof_) continue;
-    // On startup, this thread will hold the lock and write until the buffer is
-    // full.
-    const juce::SpinLock::ScopedLockType bl(bufferLock_);
-    while (!stop_ && pbuffer_->availWriteSamples() >= kStreamData.frameSize) {
-      const size_t kSamplesDecoded = decoder_.readFrame(tempBuffer);
-      if (kSamplesDecoded == 0) {
-        eof_ = true;
-        break;
+    // Wrap in while (!stop_) so that Thread::stopThread(5000) doesn't time out
+    // when the user stops or changes speaker layout while playing
+    while (!stop_) {
+      bool wroteFrame = false;
+      {
+        const juce::SpinLock::ScopedLockType bl(bufferLock_);
+        if (stop_) break;
+        if (pbuffer_->availWriteSamples() < kStreamData.frameSize) break;
+        const size_t kSamplesDecoded = decoder_.readFrame(tempBuffer);
+        if (kSamplesDecoded == 0) {
+          eof_ = true;
+          break;
+        }
+        pbuffer_->writeSamples(kSamplesDecoded, tempBuffer);
+        wroteFrame = true;
       }
-      pbuffer_->writeSamples(kSamplesDecoded, tempBuffer);
+      if (!wroteFrame) break;
     }
   }
 }

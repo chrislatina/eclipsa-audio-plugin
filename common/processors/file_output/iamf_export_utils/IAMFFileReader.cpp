@@ -318,7 +318,12 @@ bool IAMFFileReader::seekFrame(const size_t frameIdx) {
 
 bool IAMFFileReader::seekFrame(const size_t frameIdx,
                                std::atomic_bool& abortSeek) {
-  if (frameIdx >= streamData_.numFrames) {
+  // numFrames is only populated by indexFile(); when the file hasn't been
+  // indexed (realtime playback path) it stays at 0. Treat that as "unknown
+  // total length" and allow the seek - the parseFrame() loop below will
+  // return 0 if we run past the actual end of the stream, surfacing EOF
+  // through the normal failure path.
+  if (streamData_.numFrames > 0 && frameIdx >= streamData_.numFrames) {
     LOG_WARNING(0, "IAMFFileReader: Frame index out of range: " +
                        std::to_string(frameIdx));
     return false;
