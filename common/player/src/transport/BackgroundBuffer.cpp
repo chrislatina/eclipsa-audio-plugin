@@ -22,8 +22,25 @@ BackgroundBuffer::BackgroundBuffer(const unsigned paddingSeconds,
                                    IAMFFileReader& decoder)
     : decoder_(decoder), stop_(false), eof_(false) {
   const auto kStreamData = decoder_.getStreamData();
-  padSamples_ = std::min((size_t)paddingSeconds * kStreamData.sampleRate,
-                         kStreamData.numFrames * kStreamData.frameSize);
+  // numFrames is only populated when the reader has been indexed
+  // (IAMFFileReader::indexFile). In realtime playback we skip indexing to
+  // avoid blocking startup, so numFrames is 0 here. Treat 0 as
+  // "unknown total length" and fall back to the time-based padding only.
+  // Otherwise padSamples_ collapses to 0, which makes the ring buffer have
+  // zero capacity and availWriteSamples() underflows to SIZE_MAX, leading
+  // to a JUCE copyFrom assertion in PbRingBuffer::writeSamples
+  const size_t paddingSamplesByTime =
+      (size_t)paddingSeconds * kStreamData.sampleRate;
+  const size_t totalKnown =
+      kStreamData.numFrames * kStreamData.frameSize;
+  padSamples_ = (totalKnown > 0)
+                    ? std::min(paddingSamplesByTime, totalKnown)
+                    : paddingSamplesByTime;
+  // If the upstream produced a 0 sample rate or padding,
+  // allocate at least one frame so the ring buffer can hold decode
+  if (padSamples_ == 0) {
+    padSamples_ = std::max<size_t>(kStreamData.frameSize, 1024);
+  }
   absSamplePos_ = 0;
   decoder_.seekFrame(0);
   pbuffer_ =

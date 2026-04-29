@@ -29,6 +29,8 @@ class PbRingBuffer {
   size_t availReadSamples() const { return distance(head_, tail_); }
 
   size_t availWriteSamples() const {
+    // Guard against underflow when kCapacity_ == 0
+    if (kCapacity_ == 0) return 0;
     return kCapacity_ - distance(head_, tail_) - 1;
   }
 
