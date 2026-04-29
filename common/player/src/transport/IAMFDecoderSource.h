@@ -37,6 +37,11 @@ class IAMFDecoderSource : public juce::AudioSource {
   void stop();
   bool seek(size_t frameIndex);
 
+  // Request abort of any seek request in progress
+  void requestAbortSeek() {
+    if (buffer_) buffer_->requestAbortSeek();
+  }
+
   // Changes the decode layout by recreating the decoder with new
   // settings. This will stop playback, release resources, recreate the decoder,
   // and prepare it again.

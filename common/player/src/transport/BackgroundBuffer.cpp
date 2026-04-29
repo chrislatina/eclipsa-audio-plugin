@@ -96,6 +96,9 @@ size_t BackgroundBuffer::readSamples(juce::AudioBuffer<float>& out,
 }
 
 void BackgroundBuffer::seek(const size_t newFrameIdx) {
+  // Clear any stale abort request from a previous seek
+  abortSeek_.store(false);
+
   bool posInBuff;
   const size_t kNewAbsSamplePos =
       newFrameIdx * decoder_.getStreamData().frameSize;
@@ -111,8 +114,9 @@ void BackgroundBuffer::seek(const size_t newFrameIdx) {
     }
     // If frame was in buffer great - decoder can continue as normal.
     // If the frame was not in the buffer, decoder needs to seek to that pos.
+    // Pass abortSeek_ through to requestAbortSeek() to interrupt the slow seek
     if (!posInBuff) {
-      decoder_.seekFrame(newFrameIdx);
+      decoder_.seekFrame(newFrameIdx, abortSeek_);
     }
   }
   absSamplePos_ = kNewAbsSamplePos;

@@ -39,6 +39,10 @@ class BackgroundBuffer {
                      const unsigned numSamples);
   void seek(const size_t newFrameIdx);
 
+  // Request abort of any seek request in progress 
+  // to prevent locking up the decoder
+  void requestAbortSeek() { abortSeek_.store(true); }
+
  private:
   void notifyTask();
   void decodeTask();
@@ -49,6 +53,9 @@ class BackgroundBuffer {
   std::unique_ptr<PbRingBuffer> pbuffer_;
   // Decoding thread and control
   std::atomic_bool stop_, eof_;
+  // Set externally via requestAbortSeek() parsing frame.
+  // Cleared at the start of each seek() call so a fresh seek isn't stale
+  std::atomic_bool abortSeek_{false};
   std::condition_variable cv_;
   std::mutex cvm_;
   std::thread decodeThread_;
