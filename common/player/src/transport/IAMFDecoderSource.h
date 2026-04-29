@@ -62,6 +62,11 @@ class IAMFDecoderSource : public juce::AudioSource {
     return isPlaying_;
   }
 
+  bool isFinished() const {
+    const juce::SpinLock::ScopedLockType lock(stateLock_);
+    return finished_;
+  }
+
   IAMFFileReader::StreamData getStreamData() const {
     IAMFFileReader::StreamData data = streamData_;
     data.currentFrameIdx = frameCount_;
