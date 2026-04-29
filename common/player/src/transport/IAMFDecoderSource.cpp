@@ -111,7 +111,9 @@ void IAMFDecoderSource::getNextAudioBlock(
     info.buffer->clear(info.startSample + kNumRead, info.numSamples - kNumRead);
   }
 
-  if (!finished_ && kNumRead == 0 && isPlaying_) {
+  // Only flip the finished flag on a EOF.
+  // Otherwise a starved callback at startup can terminate playback
+  if (!finished_ && kNumRead == 0 && isPlaying_ && buffer_->isEof()) {
     finished_ = true;
     if (onFinished_) onFinished_();
   }

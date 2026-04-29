@@ -30,6 +30,11 @@ class BackgroundBuffer {
 
   bool isReady();
   size_t availableSamples() const;
+  // Mark EOF when the decode thread has hit the end-of-stream AND the ring buffer has
+  // been fully drained. Distinguishes a real EOF from a cold-start /
+  // or playback underrun: returning 0 samples without isEof() means the
+  // decode thread just hasn't refilled yet, not that there's nothing left.
+  bool isEof() const;
   size_t readSamples(juce::AudioBuffer<float>& out, const unsigned startSample,
                      const unsigned numSamples);
   void seek(const size_t newFrameIdx);

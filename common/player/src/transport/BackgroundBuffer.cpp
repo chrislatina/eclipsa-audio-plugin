@@ -67,6 +67,11 @@ size_t BackgroundBuffer::availableSamples() const {
   return pbuffer_->availReadSamples();
 }
 
+bool BackgroundBuffer::isEof() const {
+  const juce::SpinLock::ScopedLockType lock(bufferLock_);
+  return eof_.load() && pbuffer_->availReadSamples() == 0;
+}
+
 size_t BackgroundBuffer::readSamples(juce::AudioBuffer<float>& out,
                                      const unsigned startSample,
                                      const unsigned numSamples) {
